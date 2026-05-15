@@ -19,7 +19,7 @@ public class RecipeDAO {
     }
     
     /**
-     * Get all recipes from database
+     * Get all recipes from database ,ratana
      */
     public List<Recipe> getAllRecipes() {
         List<Recipe> recipes = new ArrayList<>();
@@ -39,13 +39,14 @@ public class RecipeDAO {
         }
         
         return recipes;
+
     }
     
     /**
-     * Get recipe by ID
+     * Get recipe by ID , ratana
      */
     public Recipe getRecipeById(int id) {
-        String sql = "SELECT * FROM Recipes WHERE id = ?";
+         String sql = "SELECT * FROM Recipes WHERE id = ?";
         
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, id);
@@ -62,10 +63,11 @@ public class RecipeDAO {
         }
         
         return null;
+
     }
     
     /**
-     * Insert new recipe
+     * Insert new recipe , ratana
      */
     public boolean insertRecipe(Recipe recipe) {
         if (!recipe.isValid()) {
@@ -106,13 +108,14 @@ public class RecipeDAO {
         }
         
         return false;
+
     }
     
     /**
-     * Update existing recipe
+     * Update existing recipe , ratana
      */
     public boolean updateRecipe(Recipe recipe) {
-        if (!recipe.isValid()) {
+       if (!recipe.isValid()) {
             System.err.println("Invalid recipe data");
             return false;
         }
@@ -147,6 +150,7 @@ public class RecipeDAO {
         }
         
         return false;
+
     }
     
     /**

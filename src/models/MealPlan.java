@@ -1,7 +1,7 @@
 package src.models;
 
 /**
- * MealPlan Model Class
+ * MealPlan Model Class ratana 
  */
 public class MealPlan {
     private int id;
@@ -112,4 +112,5 @@ public class MealPlan {
     public int hashCode() {
         return Integer.hashCode(id);
     }
+
 }

@@ -6,7 +6,7 @@ import java.sql.*;
  * Singleton class for database connection management
  */
 public class DBConnection {
-    private static DBConnection instance;
+   private static DBConnection instance;
     private Connection connection;
     private static final String URL = "jdbc:sqlite:recipes.db";
     
@@ -263,3 +263,4 @@ public class DBConnection {
         }
     }
 }
+

@@ -19,6 +19,7 @@ import java.util.List;
 
 /**
  * Main Recipe Management Application with Swing GUI
+ * macOS Compatible Version
  */
 public class RecipeManagementApp extends JFrame {
     // CardLayout for switching between panels
@@ -39,10 +40,13 @@ public class RecipeManagementApp extends JFrame {
     private Recipe currentRecipe;
     private Recipe editingRecipe;
     
-    // Color scheme
+    // Color scheme - adjusted for better macOS rendering
     private final Color SIDEBAR_COLOR = new Color(52, 73, 94);
     private final Color BUTTON_COLOR = new Color(41, 128, 185);
     private final Color BUTTON_HOVER = new Color(52, 152, 219);
+    
+    // Detect macOS
+    private final boolean IS_MAC = System.getProperty("os.name").toLowerCase().contains("mac");
     
     /**
      * Constructor
@@ -58,6 +62,21 @@ public class RecipeManagementApp extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         
+        // macOS-specific frame settings
+        if (IS_MAC) {
+            // Enable macOS full screen
+            try {
+                @SuppressWarnings("unchecked")
+                Class<?> util = Class.forName("com.apple.eawt.FullScreenUtilities");
+                @SuppressWarnings("unchecked")
+                java.lang.reflect.Method method = util.getMethod("setWindowCanFullScreen", 
+                    java.awt.Window.class, boolean.class);
+                method.invoke(util, this, true);
+            } catch (Exception e) {
+                // Ignore if not available
+            }
+        }
+        
         // Initialize UI
         initializeUI();
         
@@ -69,25 +88,86 @@ public class RecipeManagementApp extends JFrame {
      */
     private void initializeUI() {
         setLayout(new BorderLayout());
-        
+
         // Create sidebar
         JPanel sidebar = createSidebar();
         add(sidebar, BorderLayout.WEST);
-        
+
         // Create main content area with CardLayout
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
-        
+
         // Create all panels
         mainPanel.add(createRecipeListPanel(), "LIST");
         mainPanel.add(createRecipeDetailsPanel(), "DETAILS");
         mainPanel.add(createAddEditRecipePanel(), "ADD_EDIT");
         mainPanel.add(createMealPlannerPanel(), "PLANNER");
-        
+
         add(mainPanel, BorderLayout.CENTER);
-        
+
         // Show recipe list by default
         showPanel("LIST");
+    }
+
+    /**
+     * Create recipe details panel
+     */
+    private JPanel createRecipeDetailsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // Details area with macOS-friendly font
+        JTextArea detailsArea = new JTextArea();
+        detailsArea.setEditable(false);
+        detailsArea.setFont(IS_MAC ? 
+            new Font("SF Pro Text", Font.PLAIN, 14) : 
+            new Font("Arial", Font.PLAIN, 14));
+        detailsArea.setLineWrap(true);
+        detailsArea.setWrapStyleWord(true);
+        detailsArea.setMargin(new Insets(10, 10, 10, 10));
+
+        JScrollPane scrollPane = new JScrollPane(detailsArea);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Button panel
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+
+        JButton backBtn = createStyledButton("← Back to List");
+        backBtn.addActionListener(e -> showPanel("LIST"));
+
+        JButton editBtn = createStyledButton("Edit Recipe");
+        editBtn.addActionListener(e -> editCurrentRecipe());
+
+        JButton favoriteBtn = createStyledButton("Favorite ⭐");
+        favoriteBtn.addActionListener(e -> toggleFavorite());
+
+        JButton addToPlanBtn = createStyledButton("Add to Meal Plan");
+        addToPlanBtn.addActionListener(e -> addCurrentRecipeToMealPlan());
+
+        btnPanel.add(backBtn);
+        btnPanel.add(editBtn);
+        btnPanel.add(favoriteBtn);
+        btnPanel.add(addToPlanBtn);
+
+        panel.add(btnPanel, BorderLayout.SOUTH);
+
+        // Store reference to details area
+        panel.putClientProperty("detailsArea", detailsArea);
+
+        return panel;
+    }
+    
+    /**
+     * Create a styled button with macOS compatibility
+     */
+    private JButton createStyledButton(String text) {
+        JButton btn = new JButton(text);
+        if (!IS_MAC) {
+            // Only apply custom styling on non-Mac systems
+            btn.setFocusPainted(false);
+            btn.setBorderPainted(false);
+        }
+        return btn;
     }
     
     /**
@@ -99,54 +179,58 @@ public class RecipeManagementApp extends JFrame {
         sidebar.setBackground(SIDEBAR_COLOR);
         sidebar.setPreferredSize(new Dimension(220, 0));
         sidebar.setBorder(BorderFactory.createEmptyBorder(20, 10, 20, 10));
-        
-        // Title
+
+        // Title - use SF Pro on macOS
         JLabel title = new JLabel("Recipe Manager");
-        title.setFont(new Font("Arial", Font.BOLD, 20));
+        title.setFont(IS_MAC ? 
+            new Font("SF Pro Display", Font.BOLD, 20) : 
+            new Font("Arial", Font.BOLD, 20));
         title.setForeground(Color.WHITE);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
         sidebar.add(title);
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
-        
+
         JLabel subtitle = new JLabel("v1.0");
-        subtitle.setFont(new Font("Arial", Font.PLAIN, 12));
+        subtitle.setFont(IS_MAC ? 
+            new Font("SF Pro Text", Font.PLAIN, 12) : 
+            new Font("Arial", Font.PLAIN, 12));
         subtitle.setForeground(Color.LIGHT_GRAY);
         subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
         sidebar.add(subtitle);
         sidebar.add(Box.createRigidArea(new Dimension(0, 40)));
-        
+
         // Navigation buttons
         addSidebarButton(sidebar, "📋 View Recipes", e -> {
             showPanel("LIST");
             refreshRecipeList();
         });
-        
+
         addSidebarButton(sidebar, "➕ Add Recipe", e -> {
             editingRecipe = null;
             showPanel("ADD_EDIT");
             clearAddEditForm();
         });
-        
+
         addSidebarButton(sidebar, "📅 Meal Planner", e -> showPanel("PLANNER"));
-        
+
         addSidebarButton(sidebar, "⭐ Favorites", e -> showFavorites());
-        
+
         addSidebarButton(sidebar, "🎲 Random Recipe", e -> showRandomRecipe());
-        
+
         sidebar.add(Box.createVerticalGlue());
-        
+
         addSidebarButton(sidebar, "ℹ️ Help", e -> showHelp());
-        
+
         addSidebarButton(sidebar, "❌ Exit", e -> {
             int choice = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to exit?",
-                "Confirm Exit",
-                JOptionPane.YES_NO_OPTION);
+                    "Are you sure you want to exit?",
+                    "Confirm Exit",
+                    JOptionPane.YES_NO_OPTION);
             if (choice == JOptionPane.YES_OPTION) {
                 System.exit(0);
             }
         });
-        
+
         return sidebar;
     }
     
@@ -157,28 +241,37 @@ public class RecipeManagementApp extends JFrame {
         JButton btn = new JButton(text);
         btn.setMaximumSize(new Dimension(200, 45));
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btn.setBackground(BUTTON_COLOR);
         btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setFont(new Font("Arial", Font.PLAIN, 14));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
-        // Hover effect
-        btn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                btn.setBackground(BUTTON_HOVER);
-            }
+        // macOS uses native button rendering
+        if (IS_MAC) {
+            btn.setFont(new Font("SF Pro Text", Font.PLAIN, 14));
+            btn.setOpaque(false);
+            btn.setContentAreaFilled(false);
+            btn.setBorderPainted(true);
+        } else {
+            btn.setBackground(BUTTON_COLOR);
+            btn.setFocusPainted(false);
+            btn.setBorderPainted(false);
+            btn.setFont(new Font("Arial", Font.PLAIN, 14));
             
-            @Override
-            public void mouseExited(MouseEvent e) {
-                btn.setBackground(BUTTON_COLOR);
-            }
-        });
-        
+            // Hover effect for non-Mac
+            btn.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    btn.setBackground(BUTTON_HOVER);
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    btn.setBackground(BUTTON_COLOR);
+                }
+            });
+        }
+
         btn.addActionListener(action);
-        
+
         sidebar.add(btn);
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
     }
@@ -189,28 +282,28 @@ public class RecipeManagementApp extends JFrame {
     private JPanel createRecipeListPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
+
         // Top panel with search and filter
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        
+
         JLabel searchLabel = new JLabel("🔍 Search:");
         searchField = new JTextField(20);
-        JButton searchBtn = new JButton("Search");
+        JButton searchBtn = createStyledButton("Search");
         searchBtn.addActionListener(e -> performSearch());
-        
-        JButton clearSearchBtn = new JButton("Clear");
+
+        JButton clearSearchBtn = createStyledButton("Clear");
         clearSearchBtn.addActionListener(e -> {
             searchField.setText("");
             categoryFilter.setSelectedIndex(0);
             refreshRecipeList();
         });
-        
+
         JLabel filterLabel = new JLabel("Category:");
         categoryFilter = new JComboBox<>();
         categoryFilter.addItem("All Categories");
         refreshCategoryFilter();
         categoryFilter.addActionListener(e -> applyFilter());
-        
+
         topPanel.add(searchLabel);
         topPanel.add(searchField);
         topPanel.add(searchBtn);
@@ -218,27 +311,32 @@ public class RecipeManagementApp extends JFrame {
         topPanel.add(Box.createRigidArea(new Dimension(20, 0)));
         topPanel.add(filterLabel);
         topPanel.add(categoryFilter);
-        
+
         panel.add(topPanel, BorderLayout.NORTH);
-        
+
         // Recipe table
-        String[] columnNames = {"ID", "Recipe Name", "Category", "Time (min)", "Favorite"};
+        String[] columnNames = { "ID", "Recipe Name", "Category", "Time (min)", "Favorite" };
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
-        
+
         recipeTable = new JTable(tableModel);
         recipeTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        recipeTable.setRowHeight(25);
+        recipeTable.setRowHeight(IS_MAC ? 28 : 25); // Slightly taller rows on macOS
         recipeTable.getColumnModel().getColumn(0).setPreferredWidth(50);
         recipeTable.getColumnModel().getColumn(1).setPreferredWidth(250);
         recipeTable.getColumnModel().getColumn(2).setPreferredWidth(150);
         recipeTable.getColumnModel().getColumn(3).setPreferredWidth(100);
         recipeTable.getColumnModel().getColumn(4).setPreferredWidth(80);
-        
+
+        // Use native font on macOS
+        if (IS_MAC) {
+            recipeTable.setFont(new Font("SF Pro Text", Font.PLAIN, 13));
+        }
+
         // Double-click to view details
         recipeTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -248,83 +346,39 @@ public class RecipeManagementApp extends JFrame {
                 }
             }
         });
-        
+
         JScrollPane scrollPane = new JScrollPane(recipeTable);
         panel.add(scrollPane, BorderLayout.CENTER);
-        
+
         // Bottom panel with action buttons
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
-        
-        JButton viewBtn = new JButton("View Details");
+
+        JButton viewBtn = createStyledButton("View Details");
         viewBtn.addActionListener(e -> showRecipeDetails());
-        
-        JButton editBtn = new JButton("Edit");
+
+        JButton editBtn = createStyledButton("Edit");
         editBtn.addActionListener(e -> editRecipe());
-        
-        JButton deleteBtn = new JButton("Delete");
-        deleteBtn.setBackground(new Color(231, 76, 60));
-        deleteBtn.setForeground(Color.WHITE);
+
+        JButton deleteBtn = createStyledButton("Delete");
+        if (!IS_MAC) {
+            deleteBtn.setBackground(new Color(231, 76, 60));
+            deleteBtn.setForeground(Color.WHITE);
+        }
         deleteBtn.addActionListener(e -> deleteRecipe());
-        
-        JButton refreshBtn = new JButton("Refresh");
+
+        JButton refreshBtn = createStyledButton("Refresh");
         refreshBtn.addActionListener(e -> refreshRecipeList());
-        
+
         bottomPanel.add(viewBtn);
         bottomPanel.add(editBtn);
         bottomPanel.add(deleteBtn);
         bottomPanel.add(refreshBtn);
-        
+
         panel.add(bottomPanel, BorderLayout.SOUTH);
-        
+
         // Initial load
         refreshRecipeList();
-        
-        return panel;
-    }
-    
-    /**
-     * Create recipe details panel
-     */
-    private JPanel createRecipeDetailsPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
-        // Details area
-        JTextArea detailsArea = new JTextArea();
-        detailsArea.setEditable(false);
-        detailsArea.setFont(new Font("Arial", Font.PLAIN, 14));
-        detailsArea.setLineWrap(true);
-        detailsArea.setWrapStyleWord(true);
-        detailsArea.setMargin(new Insets(10, 10, 10, 10));
-        
-        JScrollPane scrollPane = new JScrollPane(detailsArea);
-        panel.add(scrollPane, BorderLayout.CENTER);
-        
-        // Button panel
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
-        
-        JButton backBtn = new JButton("← Back to List");
-        backBtn.addActionListener(e -> showPanel("LIST"));
-        
-        JButton editBtn = new JButton("Edit Recipe");
-        editBtn.addActionListener(e -> editCurrentRecipe());
-        
-        JButton favoriteBtn = new JButton("Toggle Favorite ⭐");
-        favoriteBtn.addActionListener(e -> toggleFavorite());
-        
-        JButton addToPlanBtn = new JButton("Add to Meal Plan");
-        addToPlanBtn.addActionListener(e -> addCurrentRecipeToMealPlan());
-        
-        btnPanel.add(backBtn);
-        btnPanel.add(editBtn);
-        btnPanel.add(favoriteBtn);
-        btnPanel.add(addToPlanBtn);
-        
-        panel.add(btnPanel, BorderLayout.SOUTH);
-        
-        // Store reference to details area
-        panel.putClientProperty("detailsArea", detailsArea);
-        
+
         return panel;
     }
     
@@ -334,17 +388,17 @@ public class RecipeManagementApp extends JFrame {
     private void refreshRecipeList() {
         tableModel.setRowCount(0);
         List<Recipe> recipes = recipeDAO.getAllRecipes();
-        
+
         for (Recipe recipe : recipes) {
-            tableModel.addRow(new Object[]{
-                recipe.getId(),
-                recipe.getName(),
-                recipe.getCategory(),
-                recipe.getCookingTime(),
-                recipe.isFavorite() ? "⭐" : ""
+            tableModel.addRow(new Object[] {
+                    recipe.getId(),
+                    recipe.getName(),
+                    recipe.getCategory(),
+                    recipe.getCookingTime(),
+                    recipe.isFavorite() ? "⭐" : ""
             });
         }
-        
+
         refreshCategoryFilter();
     }
     
@@ -355,12 +409,12 @@ public class RecipeManagementApp extends JFrame {
         String selected = (String) categoryFilter.getSelectedItem();
         categoryFilter.removeAllItems();
         categoryFilter.addItem("All Categories");
-        
+
         List<String> categories = recipeDAO.getAllCategories();
         for (String cat : categories) {
             categoryFilter.addItem(cat);
         }
-        
+
         if (selected != null && !selected.equals("All Categories")) {
             categoryFilter.setSelectedItem(selected);
         }
@@ -375,17 +429,17 @@ public class RecipeManagementApp extends JFrame {
             refreshRecipeList();
             return;
         }
-        
+
         tableModel.setRowCount(0);
         List<Recipe> recipes = recipeDAO.searchRecipes(keyword);
-        
+
         for (Recipe recipe : recipes) {
-            tableModel.addRow(new Object[]{
-                recipe.getId(),
-                recipe.getName(),
-                recipe.getCategory(),
-                recipe.getCookingTime(),
-                recipe.isFavorite() ? "⭐" : ""
+            tableModel.addRow(new Object[] {
+                    recipe.getId(),
+                    recipe.getName(),
+                    recipe.getCategory(),
+                    recipe.getCookingTime(),
+                    recipe.isFavorite() ? "⭐" : ""
             });
         }
     }
@@ -474,9 +528,6 @@ public class RecipeManagementApp extends JFrame {
         detailsArea.setCaretPosition(0);
     }
     
-    /**
-     * Continue to Part 2 for remaining methods...
-     */
     /**
      * Edit selected recipe
      */
@@ -651,11 +702,14 @@ public class RecipeManagementApp extends JFrame {
             "   - Double-click recipe to view details\n" +
             "   - Enter in search field to search\n\n" +
             "Version 1.0\n" +
-            "Developed with Java Swing & SQLite";
+            "Developed with Java Swing & SQLite\n" +
+            "macOS Compatible";
         
         JTextArea textArea = new JTextArea(helpText);
         textArea.setEditable(false);
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        textArea.setFont(IS_MAC ? 
+            new Font("SF Mono", Font.PLAIN, 12) : 
+            new Font("Monospaced", Font.PLAIN, 12));
         
         JScrollPane scrollPane = new JScrollPane(textArea);
         scrollPane.setPreferredSize(new Dimension(500, 500));
@@ -682,7 +736,9 @@ public class RecipeManagementApp extends JFrame {
         
         // Title
         JLabel titleLabel = new JLabel("Add New Recipe");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        titleLabel.setFont(IS_MAC ? 
+            new Font("SF Pro Display", Font.BOLD, 24) : 
+            new Font("Arial", Font.BOLD, 24));
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         panel.add(titleLabel, BorderLayout.NORTH);
         
@@ -724,6 +780,9 @@ public class RecipeManagementApp extends JFrame {
         JTextArea instructionsArea = new JTextArea(6, 30);
         instructionsArea.setLineWrap(true);
         instructionsArea.setWrapStyleWord(true);
+        if (IS_MAC) {
+            instructionsArea.setFont(new Font("SF Pro Text", Font.PLAIN, 13));
+        }
         JScrollPane instrScroll = new JScrollPane(instructionsArea);
         formPanel.add(instrScroll, gbc);
         
@@ -740,6 +799,9 @@ public class RecipeManagementApp extends JFrame {
         JTextArea ingredientsArea = new JTextArea(6, 30);
         ingredientsArea.setLineWrap(true);
         ingredientsArea.setWrapStyleWord(true);
+        if (IS_MAC) {
+            ingredientsArea.setFont(new Font("SF Pro Text", Font.PLAIN, 13));
+        }
         JScrollPane ingScroll = new JScrollPane(ingredientsArea);
         formPanel.add(ingScroll, gbc);
         
@@ -748,7 +810,9 @@ public class RecipeManagementApp extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weighty = 0;
         JLabel helpLabel = new JLabel("<html><i>Format: quantity - name (e.g., 200g - Flour)</i></html>");
-        helpLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+        helpLabel.setFont(IS_MAC ? 
+            new Font("SF Pro Text", Font.PLAIN, 11) : 
+            new Font("Arial", Font.PLAIN, 11));
         formPanel.add(helpLabel, gbc);
         
         panel.add(formPanel, BorderLayout.CENTER);
@@ -756,14 +820,18 @@ public class RecipeManagementApp extends JFrame {
         // Button panel
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         
-        JButton saveBtn = new JButton("💾 Save Recipe");
-        saveBtn.setFont(new Font("Arial", Font.BOLD, 14));
-        saveBtn.setBackground(new Color(46, 204, 113));
-        saveBtn.setForeground(Color.WHITE);
+        JButton saveBtn = createStyledButton("💾 Save Recipe");
+        saveBtn.setFont(IS_MAC ? 
+            new Font("SF Pro Text", Font.BOLD, 14) : 
+            new Font("Arial", Font.BOLD, 14));
+        if (!IS_MAC) {
+            saveBtn.setBackground(new Color(46, 204, 113));
+            saveBtn.setForeground(Color.WHITE);
+        }
         saveBtn.addActionListener(e -> saveRecipe(nameField, categoryField, timeSpinner, 
             instructionsArea, ingredientsArea));
         
-        JButton cancelBtn = new JButton("Cancel");
+        JButton cancelBtn = createStyledButton("Cancel");
         cancelBtn.addActionListener(e -> {
             int confirm = JOptionPane.showConfirmDialog(this,
                 "Discard changes?",
@@ -918,48 +986,98 @@ public class RecipeManagementApp extends JFrame {
         
         // Title
         JLabel titleLabel = new JLabel("📅 Meal Planner");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        panel.add(titleLabel, BorderLayout.NORTH);
+        titleLabel.setFont(IS_MAC ? 
+            new Font("SF Pro Display", Font.BOLD, 24) : 
+            new Font("Arial", Font.BOLD, 24));
         
-        // Top panel with date selection
+        // Top container to hold title and buttons
+        JPanel topContainer = new JPanel(new BorderLayout(10, 10));
+        topContainer.add(titleLabel, BorderLayout.NORTH);
+        
+        // Top panel with date selection and actions
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         JTextField dateField = new JTextField(sdf.format(new Date()), 12);
         
-        JButton loadBtn = new JButton("Load Plans");
-        JButton addBtn = new JButton("Add to Plan");
-        JButton groceryBtn = new JButton("Generate Grocery List");
+        JButton loadBtn = createStyledButton("Load Plans");
+        JButton addBtn = createStyledButton("Add to Plan");
+        JButton deleteBtn = createStyledButton("Delete from Plan");
+        if (!IS_MAC) {
+            deleteBtn.setBackground(new Color(231, 76, 60));
+            deleteBtn.setForeground(Color.WHITE);
+        }
+        JButton groceryBtn = createStyledButton("Generate Grocery List");
         
         topPanel.add(new JLabel("Date (yyyy-MM-dd):"));
         topPanel.add(dateField);
         topPanel.add(loadBtn);
         topPanel.add(addBtn);
+        topPanel.add(deleteBtn);
         topPanel.add(groceryBtn);
         
-        panel.add(topPanel, BorderLayout.NORTH);
+        topContainer.add(topPanel, BorderLayout.CENTER);
+        panel.add(topContainer, BorderLayout.NORTH);
         
-        // Meal plan display area
-        JTextArea planArea = new JTextArea();
-        planArea.setEditable(false);
-        planArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
-        JScrollPane scrollPane = new JScrollPane(planArea);
+        // Meal plan table instead of text area for better selection
+        String[] columnNames = {"ID", "Meal Type", "Recipe Name", "Cooking Time (min)"};
+        DefaultTableModel mealPlanTableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        
+        JTable mealPlanTable = new JTable(mealPlanTableModel);
+        mealPlanTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        mealPlanTable.setRowHeight(IS_MAC ? 28 : 25);
+        mealPlanTable.getColumnModel().getColumn(0).setPreferredWidth(50);
+        mealPlanTable.getColumnModel().getColumn(1).setPreferredWidth(120);
+        mealPlanTable.getColumnModel().getColumn(2).setPreferredWidth(250);
+        mealPlanTable.getColumnModel().getColumn(3).setPreferredWidth(150);
+        
+        if (IS_MAC) {
+            mealPlanTable.setFont(new Font("SF Pro Text", Font.PLAIN, 13));
+        }
+        
+        JScrollPane scrollPane = new JScrollPane(mealPlanTable);
         panel.add(scrollPane, BorderLayout.CENTER);
         
+        // Store references
+        panel.putClientProperty("dateField", dateField);
+        panel.putClientProperty("mealPlanTable", mealPlanTable);
+        panel.putClientProperty("mealPlanTableModel", mealPlanTableModel);
+        
         // Load button action
-        loadBtn.addActionListener(e -> loadMealPlan(dateField.getText(), planArea));
+        loadBtn.addActionListener(e -> loadMealPlanToTable(dateField.getText(), 
+            mealPlanTableModel, mealPlanTable));
         
         // Add to plan button action
-        addBtn.addActionListener(e -> addToMealPlan(dateField.getText(), planArea));
+        addBtn.addActionListener(e -> addToMealPlan(dateField.getText(), 
+            mealPlanTableModel, mealPlanTable));
+        
+        // Delete button action
+        deleteBtn.addActionListener(e -> deleteMealPlanEntry(mealPlanTable, 
+            mealPlanTableModel, dateField.getText()));
         
         // Grocery list button action
         groceryBtn.addActionListener(e -> generateGroceryList(dateField.getText()));
         
         // Bottom panel
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JButton backBtn = new JButton("← Back");
+        JButton backBtn = createStyledButton("← Back");
         backBtn.addActionListener(e -> showPanel("LIST"));
+        
+        JButton clearAllBtn = createStyledButton("Clear All for Date");
+        if (!IS_MAC) {
+            clearAllBtn.setBackground(new Color(230, 126, 34));
+            clearAllBtn.setForeground(Color.WHITE);
+        }
+        clearAllBtn.addActionListener(e -> clearAllMealPlansForDate(dateField.getText(), 
+            mealPlanTableModel, mealPlanTable));
+        
         bottomPanel.add(backBtn);
+        bottomPanel.add(clearAllBtn);
         
         panel.add(bottomPanel, BorderLayout.SOUTH);
         
@@ -967,40 +1085,38 @@ public class RecipeManagementApp extends JFrame {
     }
     
     /**
-     * Load meal plan for a date
+     * Load meal plan for a date into table
      */
-    private void loadMealPlan(String date, JTextArea planArea) {
+    private void loadMealPlanToTable(String date, DefaultTableModel tableModel, JTable table) {
+        tableModel.setRowCount(0);
         List<MealPlan> plans = mealPlanDAO.getMealPlanForDate(date);
         
-        StringBuilder sb = new StringBuilder();
-        sb.append("═══════════════════════════════════════\n");
-        sb.append("   MEAL PLAN FOR ").append(date).append("\n");
-        sb.append("═══════════════════════════════════════\n\n");
-        
         if (plans.isEmpty()) {
-            sb.append("No meals planned for this date.\n");
-            sb.append("\nClick 'Add to Plan' to add recipes!");
+            JOptionPane.showMessageDialog(this,
+                "No meals planned for " + date + "\n\nClick 'Add to Plan' to add recipes!",
+                "No Meal Plans",
+                JOptionPane.INFORMATION_MESSAGE);
         } else {
             for (MealPlan mp : plans) {
-                sb.append("🍽️  ").append(mp.getMealType()).append("\n");
-                sb.append("   Recipe: ").append(mp.getRecipe().getName()).append("\n");
-                sb.append("   Time: ").append(mp.getRecipe().getCookingTime()).append(" minutes\n");
-                sb.append("\n");
+                tableModel.addRow(new Object[]{
+                    mp.getId(),
+                    mp.getMealType(),
+                    mp.getRecipe().getName(),
+                    mp.getRecipe().getCookingTime()
+                });
             }
         }
-        
-        planArea.setText(sb.toString());
     }
     
     /**
      * Add recipe to meal plan
      */
-    private void addToMealPlan(String date, JTextArea planArea) {
+    private void addToMealPlan(String date, DefaultTableModel tableModel, JTable table) {
         // Select recipe
         List<Recipe> recipes = recipeDAO.getAllRecipes();
         if (recipes.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                "No recipes available!",
+                "No recipes available!\n\nPlease add some recipes first.",
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
             return;
@@ -1011,7 +1127,7 @@ public class RecipeManagementApp extends JFrame {
             .toArray(String[]::new);
         
         String selectedRecipe = (String) JOptionPane.showInputDialog(this,
-            "Select a recipe:",
+            "Select a recipe to add to meal plan:",
             "Add to Meal Plan",
             JOptionPane.QUESTION_MESSAGE,
             null,
@@ -1045,10 +1161,10 @@ public class RecipeManagementApp extends JFrame {
         MealPlan mp = new MealPlan(recipeId, date, mealType);
         if (mealPlanDAO.insertMealPlan(mp)) {
             JOptionPane.showMessageDialog(this,
-                "Added to meal plan!",
+                "Added '" + selectedRecipe + "' to " + mealType + " for " + date + "!",
                 "Success",
                 JOptionPane.INFORMATION_MESSAGE);
-            loadMealPlan(date, planArea);
+            loadMealPlanToTable(date, tableModel, table);
         } else {
             JOptionPane.showMessageDialog(this,
                 "Error adding to meal plan!",
@@ -1094,6 +1210,89 @@ public class RecipeManagementApp extends JFrame {
     }
     
     /**
+     * Delete selected meal plan entry
+     */
+    private void deleteMealPlanEntry(JTable table, DefaultTableModel tableModel, String date) {
+        int selectedRow = table.getSelectedRow();
+        
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this,
+                "Please select a meal plan entry to delete!",
+                "No Selection",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int mealPlanId = (int) tableModel.getValueAt(selectedRow, 0);
+        String mealType = (String) tableModel.getValueAt(selectedRow, 1);
+        String recipeName = (String) tableModel.getValueAt(selectedRow, 2);
+        
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Delete '" + recipeName + "' from " + mealType + "?",
+            "Confirm Deletion",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (mealPlanDAO.deleteMealPlan(mealPlanId)) {
+                JOptionPane.showMessageDialog(this,
+                    "Meal plan entry deleted successfully!",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+                loadMealPlanToTable(date, tableModel, table);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                    "Error deleting meal plan entry!",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    
+    /**
+     * Clear all meal plans for a specific date
+     */
+    private void clearAllMealPlansForDate(String date, DefaultTableModel tableModel, JTable table) {
+        List<MealPlan> plans = mealPlanDAO.getMealPlanForDate(date);
+        
+        if (plans.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "No meal plans found for " + date,
+                "Nothing to Clear",
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Are you sure you want to delete ALL " + plans.size() + " meal plan(s) for " + date + "?",
+            "Clear All Meal Plans",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            int deletedCount = 0;
+            for (MealPlan mp : plans) {
+                if (mealPlanDAO.deleteMealPlan(mp.getId())) {
+                    deletedCount++;
+                }
+            }
+            
+            if (deletedCount > 0) {
+                JOptionPane.showMessageDialog(this,
+                    "Cleared " + deletedCount + " meal plan(s) for " + date,
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+                loadMealPlanToTable(date, tableModel, table);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                    "Error clearing meal plans!",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    
+    /**
      * Generate grocery list
      */
     private void generateGroceryList(String date) {
@@ -1132,7 +1331,9 @@ public class RecipeManagementApp extends JFrame {
         // Display in dialog
         JTextArea textArea = new JTextArea(sb.toString());
         textArea.setEditable(false);
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        textArea.setFont(IS_MAC ? 
+            new Font("SF Mono", Font.PLAIN, 12) : 
+            new Font("Monospaced", Font.PLAIN, 12));
         
         JScrollPane scrollPane = new JScrollPane(textArea);
         scrollPane.setPreferredSize(new Dimension(400, 400));
@@ -1182,11 +1383,33 @@ public class RecipeManagementApp extends JFrame {
      * Main method to run the application
      */
     public static void main(String[] args) {
+        // macOS-specific settings - MUST be set before any GUI creation
+        if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+            // Use macOS menu bar
+            System.setProperty("apple.laf.useScreenMenuBar", "true");
+            // Set application name in menu bar
+            System.setProperty("apple.awt.application.name", "Recipe Manager");
+            // Enable full-screen mode
+            System.setProperty("apple.awt.application.appearance", "system");
+        }
+        
         // Set look and feel
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            // For macOS, use the native look and feel
+            if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            } else {
+                // For other systems, try to use Nimbus for a modern look
+                for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                    if ("Nimbus".equals(info.getName())) {
+                        UIManager.setLookAndFeel(info.getClassName());
+                        break;
+                    }
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
+            // Fall back to default if setting look and feel fails
         }
         
         // Run on EDT

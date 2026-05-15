@@ -1,7 +1,7 @@
 package src.models;
 
 /**
- * Ingredient Model Class
+ * Ingredient Model Class\\ ratana part
  */
 public class Ingredient {
     private int id;
@@ -94,4 +94,5 @@ public class Ingredient {
     public int hashCode() {
         return Integer.hashCode(id);
     }
+
 }

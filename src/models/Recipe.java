@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Recipe Model Class (POJO)
+ * Recipe Model Class (ratana)
  */
 public class Recipe {
     private int id;
@@ -144,4 +144,5 @@ public class Recipe {
     public int hashCode() {
         return Integer.hashCode(id);
     }
+ 
 }
